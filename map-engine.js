@@ -45,6 +45,7 @@ window.MapEngine = (() => {
   };
   const mapContinent = c => c || "Asia";
   const DEFAULT_CENTER = [20, 0];
+  const normalizeName = v => (v || "").toString().trim().toLowerCase().replace(/\s+/g, " ");
 
   const getKey = feature => {
     const p = feature.properties || {};
@@ -141,8 +142,7 @@ window.MapEngine = (() => {
     const p = feature.properties || {};
     const iso2 = (p.ISO_A2||p.iso_a2||"").toUpperCase();
     const name = p.ADMIN || p.name || p.NAME || "--";
-    const key = getKey(feature);
-    const entry = _stats[key] || null;
+    const entry = resolveEntry(feature);
 
     if (_onCountrySelect) {
       _onCountrySelect({
@@ -312,6 +312,38 @@ window.MapEngine = (() => {
 
   /* ── Stats & Styles ── */
   let _stats = {};
+  let _nameIndex = {};
+  let _nameEntries = [];
+  const resolveEntry = (feature) => {
+    const p = feature.properties || {};
+    const key = getKey(feature);
+    if (_stats[key]) return _stats[key];
+
+    const iso2 = (p.ISO_A2 || p.iso_a2 || "").toUpperCase();
+    const iso3 = (p.ISO_A3 || p.iso_a3 || feature.id || "").toUpperCase();
+    if (_stats[iso2]) return _stats[iso2];
+    if (_stats[iso3]) return _stats[iso3];
+
+    const name = normalizeName(p.ADMIN || p.name || p.NAME || "");
+    if (name && _nameIndex[name]) return _nameIndex[name];
+
+    if (name && _nameEntries.length) {
+      let best = null;
+      let bestLen = 0;
+      _nameEntries.forEach(({ name: entryName, entry }) => {
+        if (!entryName) return;
+        if (name.includes(entryName) || entryName.includes(name)) {
+          const len = Math.min(name.length, entryName.length);
+          if (len > bestLen) {
+            best = entry;
+            bestLen = len;
+          }
+        }
+      });
+      if (best) return best;
+    }
+    return null;
+  };
   const getPopupContent = (feature, entry) => {
     const p = feature.properties || {};
     const name = p.ADMIN || p.name || "--";
@@ -360,6 +392,14 @@ window.MapEngine = (() => {
 
   const setStats = stats => {
     _stats = stats || {};
+    _nameIndex = {};
+    _nameEntries = [];
+    Object.values(_stats).forEach((entry) => {
+      const name = normalizeName(entry?.name);
+      if (!name) return;
+      _nameIndex[name] = entry;
+      _nameEntries.push({ name, entry });
+    });
     return _stats;
   };
 
@@ -373,8 +413,7 @@ window.MapEngine = (() => {
 
     countryLayer.eachLayer(layer => {
       const feature = layer.feature;
-      const key = getKey(feature);
-      const entry = normalized[key];
+      const entry = resolveEntry(feature);
       const entryRatio = getBuyRatio(entry);
 
       let borderColor = NO_DATA_COLOR;
