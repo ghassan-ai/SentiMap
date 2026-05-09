@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SentiMap — خريطة سنتيمنت المتداولين</title>
+  <meta name="description" content="خريطة تفاعلية لعرض سنتيمنت السوق للذهب والفضة حول العالم" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&family=Space+Grotesk:wght@400;600&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <header class="topbar" id="topbar">
+    <div class="brand">
+      <div class="logo">SM</div>
+      <div class="title">
+        <div class="name">SentiMap</div>
+        <div class="tagline">خريطة سنتيمنت المتداولين</div>
+      </div>
+    </div>
+
+    <nav class="asset-tabs" role="tablist" aria-label="الأصول">
+      <button class="asset-tab active" data-asset="gold" role="tab">ذهب</button>
+      <button class="asset-tab" data-asset="silver" role="tab">فضة</button>
+    </nav>
+
+    <div class="last-update">
+      <span>آخر تحديث</span>
+      <strong id="lastUpdate">الآن</strong>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="map-wrap">
+      <div id="map"></div>
+
+      <div class="map-legend" id="mapLegend">
+        <div class="legend-title">بيانات المتداولين</div>
+        <div class="legend-row">
+          <span class="legend-swatch" style="background:#2ea043"></span>
+          <span>أكثر من 70% شارين</span>
+        </div>
+        <div class="legend-row">
+          <span class="legend-swatch" style="background:#3fbf5f"></span>
+          <span>55-70% شارين</span>
+        </div>
+        <div class="legend-row">
+          <span class="legend-swatch" style="background:#8b949e"></span>
+          <span>45-55% محايد</span>
+        </div>
+        <div class="legend-row">
+          <span class="legend-swatch" style="background:#f47067"></span>
+          <span>55-70% بايعين</span>
+        </div>
+        <div class="legend-row">
+          <span class="legend-swatch" style="background:#da3633"></span>
+          <span>أكثر من 70% بايعين</span>
+        </div>
+        <div class="legend-note">تحديث مركزي كل ساعة عبر الخادم</div>
+      </div>
+
+      <!-- Country Selection Panel (floating over map, top-right) -->
+      <div class="country-panel" id="countryPanel">
+        <div class="country-panel-empty" id="countryPanelEmpty">
+          <div class="cpe-icon">🌐</div>
+          <div class="cpe-title">اختر دولة</div>
+        </div>
+        <div class="country-panel-data" id="countryPanelData" style="display:none;">
+          <div class="cpd-header">
+            <span class="cpd-flag" id="cpdFlag">🏳️</span>
+            <div class="cpd-info">
+              <div class="cpd-name" id="cpdName">--</div>
+              <div class="cpd-code" id="cpdCode">--</div>
+            </div>
+            <button class="cpd-close" id="cpdClose" aria-label="إغلاق">✕</button>
+          </div>
+          <div class="cpd-body" id="cpdBody">
+            <!-- Filled dynamically -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="sheet-handle" aria-hidden="true"></div>
+
+      <div class="card">
+        <h3>ملخص السنتيمنت العالمي</h3>
+        <div class="summary">
+          <div class="chart-wrap">
+            <canvas id="sentimentChart" height="180"></canvas>
+          </div>
+          <div class="summary-stats">
+            <div class="stat">
+              <span>الشراء</span>
+              <strong id="globalBuy">--</strong>
+            </div>
+            <div class="stat">
+              <span>البيع</span>
+              <strong id="globalSell">--</strong>
+            </div>
+            <div class="signal" id="globalSignal">محايد</div>
+          </div>
+        </div>
+
+        <div class="summary-grid">
+          <div class="summary-line">
+            <span>إجمالي المراكز</span>
+            <strong id="todayCount">--</strong>
+          </div>
+          <div class="summary-line">
+            <span>أكثر دولة شراءً</span>
+            <strong id="topBuyAsset">--</strong>
+          </div>
+          <div class="summary-line">
+            <span>أكثر دولة بيعاً</span>
+            <strong id="topSellAsset">--</strong>
+          </div>
+        </div>
+
+        <div class="status-line" id="mfbStatus"></div>
+        <div class="mfb-error" id="mfbError" aria-live="polite"></div>
+      </div>
+
+      <!-- Top 5 Countries Section -->
+      <div class="card" id="topCountriesCard">
+        <h3>أكثر 5 دول نشاطاً</h3>
+        <div class="top-countries-list" id="topCountriesList">
+          <div class="top-country-placeholder">جارٍ التحميل...</div>
+        </div>
+      </div>
+
+      <div class="card notice">
+        <h3>تنبيه مهم</h3>
+        <p class="disclaimer">للأغراض المعلوماتية فقط. ليست نصيحة مالية.</p>
+      </div>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="config.js"></script>
+  <script src="map-engine.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
