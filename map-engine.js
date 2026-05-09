@@ -202,19 +202,6 @@ window.MapEngine = (() => {
         if (iso2 && iso2 !== "-99") countryCenterByCode[iso2] = center;
         if (iso3 && iso3 !== "-99") countryCenterByCode[iso3] = center;
 
-        // Tooltip on hover
-        layer.on("mouseover", () => {
-          if (layer !== _selectedLayer) {
-            layer.setStyle({ color: "rgba(255,255,255,0.35)", weight: 1.2 });
-          }
-          layer.bindTooltip(getTooltip(feature), { sticky: true, className: "sm-tooltip" }).openTooltip();
-        });
-        layer.on("mouseout", () => {
-          if (layer !== _selectedLayer) {
-            layer.setStyle(layer.options.baseStyle);
-          }
-        });
-
         // Click → select
         layer.on("click", () => selectCountry(layer));
       }

@@ -19,14 +19,7 @@ window.SM_CONFIG = {
     highlight: "#00fff2"
   },
   MFB_PANEL_SIZE: { width: 190, height: 36 },
-  MFB_OVERLAYS: [
-    { id: "northAmerica", label: "أمريكا الشمالية", land: [50, -125], ocean: [35, -160] },
-    { id: "southAmerica", label: "أمريكا الجنوبية", land: [-15, -75], ocean: [-25, -110] },
-    { id: "europe", label: "أوروبا", land: [50, -10], ocean: [45, -35] },
-    { id: "africa", label: "أفريقيا", land: [5, -5], ocean: [-10, -30] },
-    { id: "asia", label: "آسيا", land: [35, 135], ocean: [30, 165] },
-    { id: "oceania", label: "أوقيانوسيا", land: [-25, 135], ocean: [-35, 170] }
-  ],
+  MFB_OVERLAYS: [],
   MAP: {
     minZoom: 2,
     panZoom: 3,
