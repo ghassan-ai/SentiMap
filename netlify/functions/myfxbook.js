@@ -48,12 +48,13 @@ const fetchJson = (url) => new Promise((resolve, reject) => {
 });
 
 const login = async () => {
-  const email = process.env.MYFXBOOK_EMAIL;
-  const password = process.env.MYFXBOOK_PASSWORD;
+  const email = String(process.env.MYFXBOOK_EMAIL || "").trim();
+  const password = String(process.env.MYFXBOOK_PASSWORD || "").trim();
   if (!email || !password) {
+    console.error("Myfxbook env missing: MYFXBOOK_EMAIL or MYFXBOOK_PASSWORD");
     throw new Error("Missing MYFXBOOK_EMAIL or MYFXBOOK_PASSWORD");
   }
-  const url = `${MFB_BASE}/login.json?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
+  const url = `${MFB_BASE}/login.json?email=${email}&password=${password}`;
   const data = await fetchJson(url);
   if (!data?.session) throw new Error("Myfxbook login did not return a session");
   sessionCache = { ts: Date.now(), session: data.session };
@@ -69,14 +70,14 @@ const getSession = async () => {
 
 const getOutlook = async (symbol) => {
   const session = await getSession();
-  const url = `${MFB_BASE}/get-community-outlook-by-country.json?session=${encodeURIComponent(session)}&symbol=${encodeURIComponent(symbol)}`;
+  const url = `${MFB_BASE}/get-community-outlook-by-country.json?session=${session}&symbol=${symbol}`;
   try {
     return await fetchJson(url);
   } catch (err) {
     if (/session/i.test(err?.message || "")) {
       sessionCache = { ts: 0, session: null };
       const retrySession = await login();
-      const retryUrl = `${MFB_BASE}/get-community-outlook-by-country.json?session=${encodeURIComponent(retrySession)}&symbol=${encodeURIComponent(symbol)}`;
+      const retryUrl = `${MFB_BASE}/get-community-outlook-by-country.json?session=${retrySession}&symbol=${symbol}`;
       return fetchJson(retryUrl);
     }
     throw err;
@@ -100,6 +101,7 @@ exports.handler = async (event) => {
     const data = await getOutlook(symbol);
     return jsonResponse(200, { ok: true, updatedAt: Date.now(), data });
   } catch (err) {
+    console.error("Myfxbook function error:", err?.message || err);
     return jsonResponse(502, { ok: false, error: err?.message || "Myfxbook error" });
   }
 };
