@@ -6,6 +6,7 @@ window.MapEngine = (() => {
   let _selectedLayer = null;
   let _mfbOverlays = [];
   let _onCountrySelect = null;  // callback when country is clicked
+  let _popup = null;
 
   const fmt = r => `${Math.round(r * 100)}%`;
   const fmtPct = v => (Number.isFinite(v) ? `${v.toFixed(2)}%` : "--");
@@ -50,12 +51,14 @@ window.MapEngine = (() => {
     return (p.ISO_A2||p.iso_a2||p.ISO_A3||p.iso_a3||feature.id||p.ADMIN||p.name||"").toUpperCase();
   };
 
+  const NO_DATA_COLOR = "#2b3036";
+
   /* ── Default + highlight styles ── */
   const defaultStyle = {
-    color: "rgba(255,255,255,0.12)",
+    color: NO_DATA_COLOR,
     weight: 0.6,
-    fillColor: "transparent",
-    fillOpacity: 0
+    fillColor: NO_DATA_COLOR,
+    fillOpacity: 0.45
   };
 
   const highlightStyle = {
@@ -121,6 +124,10 @@ window.MapEngine = (() => {
       _selectedLayer.setStyle(_selectedLayer.options.baseStyle || defaultStyle);
       _selectedLayer = null;
     }
+    if (_popup && map) {
+      map.closePopup(_popup);
+      _popup = null;
+    }
   };
 
   /* ── Select a country ── */
@@ -145,6 +152,18 @@ window.MapEngine = (() => {
         entry
       });
     }
+
+    const popupContent = getPopupContent(feature, entry);
+    const center = layer.getBounds().getCenter();
+    _popup = L.popup({
+      closeButton: false,
+      autoClose: true,
+      closeOnClick: true,
+      className: "sm-popup-wrapper"
+    })
+      .setLatLng(center)
+      .setContent(popupContent)
+      .openOn(map);
   };
 
   /* ── Focus on User Country ── */
@@ -293,26 +312,50 @@ window.MapEngine = (() => {
 
   /* ── Stats & Styles ── */
   let _stats = {};
-  const getTooltip = feature => {
-    const key = getKey(feature);
-    const e = _stats[key];
+  const getPopupContent = (feature, entry) => {
     const p = feature.properties || {};
     const name = p.ADMIN || p.name || "--";
-    if (!e) return `<span class="sm-tt-name">${name}</span><br><span class="sm-tt-muted">لا توجد بيانات</span>`;
-
     const iso2 = (p.ISO_A2 || p.iso_a2 || "").toUpperCase();
-    const flag = iso2.length === 2 ? `${toFlag(iso2)} ` : "";
-    const buyRatio = getBuyRatio(e);
-    const buyPct = Number.isFinite(e.longPercentage)
-      ? e.longPercentage
-      : (Number.isFinite(buyRatio) ? buyRatio * 100 : null);
-    const sellPct = Number.isFinite(e.shortPercentage)
-      ? e.shortPercentage
-      : (Number.isFinite(buyRatio) ? (1 - buyRatio) * 100 : null);
+    const flag = iso2.length === 2 ? toFlag(iso2) : "🏳️";
 
-    return `<span class="sm-tt-name">${flag}${name}</span><br>`
-      + `<span class="sm-tt-muted">شراء ${fmtPct(buyPct)} · بيع ${fmtPct(sellPct)}</span><br>`
-      + `<span class="sm-tt-muted">المشترين ${fmtCount(e.longPositions)} · البائعين ${fmtCount(e.shortPositions)}</span>`;
+    if (!entry) {
+      return `<div class="sm-popup">
+        <div class="sm-popup-title"><span class="sm-popup-flag">${flag}</span><span class="sm-popup-name">${name}</span></div>
+        <div class="sm-popup-empty">لا توجد بيانات لهذه الدولة</div>
+      </div>`;
+    }
+
+    const buyRatio = getBuyRatio(entry);
+    const buyPct = Number.isFinite(entry.longPercentage)
+      ? entry.longPercentage
+      : (Number.isFinite(buyRatio) ? buyRatio * 100 : null);
+    const sellPct = Number.isFinite(entry.shortPercentage)
+      ? entry.shortPercentage
+      : (Number.isFinite(buyRatio) ? (1 - buyRatio) * 100 : null);
+    let buyWidth = Number.isFinite(buyPct) ? clamp(buyPct, 0, 100) : null;
+    let sellWidth = Number.isFinite(sellPct) ? clamp(sellPct, 0, 100) : null;
+    if (buyWidth === null && sellWidth === null) {
+      buyWidth = 50;
+      sellWidth = 50;
+    } else if (buyWidth === null) {
+      buyWidth = 100 - sellWidth;
+    } else if (sellWidth === null) {
+      sellWidth = 100 - buyWidth;
+    }
+
+    return `<div class="sm-popup">
+      <div class="sm-popup-title"><span class="sm-popup-flag">${flag}</span><span class="sm-popup-name">${name}</span></div>
+      <div class="sm-popup-row"><span class="sm-popup-label">المشترين</span><span class="sm-popup-value buy">${fmtCount(entry.longPositions)}</span></div>
+      <div class="sm-popup-row"><span class="sm-popup-label">البائعين</span><span class="sm-popup-value sell">${fmtCount(entry.shortPositions)}</span></div>
+      <div class="sm-popup-pct">
+        <span class="sm-popup-pill buy">شراء ${fmtPct(buyPct)}</span>
+        <span class="sm-popup-pill sell">بيع ${fmtPct(sellPct)}</span>
+      </div>
+      <div class="sm-popup-bar">
+        <div class="sm-popup-bar-fill buy" style="width:${buyWidth}%"></div>
+        <div class="sm-popup-bar-fill sell" style="width:${sellWidth}%"></div>
+      </div>
+    </div>`;
   };
 
   const setStats = stats => {
@@ -322,7 +365,7 @@ window.MapEngine = (() => {
 
   const computeStats = stats => setStats(stats);
 
-  const updateStyles = (stats, globalRatio) => {
+  const updateStyles = (stats) => {
     if (!countryLayer) return;
     const normalized = stats || {};
     setStats(normalized);
@@ -333,19 +376,18 @@ window.MapEngine = (() => {
       const key = getKey(feature);
       const entry = normalized[key];
       const entryRatio = getBuyRatio(entry);
-      const effectiveRatio = Number.isFinite(entryRatio) ? entryRatio : globalRatio;
 
-      let borderColor = "rgba(255,255,255,0.12)";
-      let fillColor = "transparent";
-      let fillOpacity = 0;
+      let borderColor = NO_DATA_COLOR;
+      let fillColor = NO_DATA_COLOR;
+      let fillOpacity = 0.45;
       let weight = 0.6;
 
-      if (Number.isFinite(effectiveRatio)) {
-        const c = getColor(effectiveRatio);
+      if (Number.isFinite(entryRatio)) {
+        const c = getColor(entryRatio);
         borderColor = c;
         fillColor = c;
-        fillOpacity = entry ? 0.55 : 0.2;
-        weight = entry ? 1.4 : 0.8;
+        fillOpacity = 0.6;
+        weight = 1.4;
       }
 
       layer.options.baseStyle = {

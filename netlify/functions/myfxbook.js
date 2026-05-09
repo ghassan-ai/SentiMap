@@ -4,8 +4,12 @@ const https = require("https");
 
 const MFB_BASE = "https://www.myfxbook.com/api";
 const SESSION_TTL_MS = 55 * 60 * 1000;
+const CACHE_DURATION = 60 * 60 * 1000;
 
 let sessionCache = { ts: 0, session: null };
+let cachedData = null;
+let lastFetch = 0;
+let cachedSymbol = null;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -97,9 +101,17 @@ exports.handler = async (event) => {
     return jsonResponse(400, { ok: false, error: "Missing symbol" });
   }
 
+  const now = Date.now();
+  if (cachedData && cachedSymbol === symbol && now - lastFetch < CACHE_DURATION) {
+    return jsonResponse(200, { ok: true, cached: true, updatedAt: lastFetch, data: cachedData });
+  }
+
   try {
     const data = await getOutlook(symbol);
-    return jsonResponse(200, { ok: true, updatedAt: Date.now(), data });
+    cachedData = data;
+    cachedSymbol = symbol;
+    lastFetch = Date.now();
+    return jsonResponse(200, { ok: true, cached: false, updatedAt: lastFetch, data });
   } catch (err) {
     console.error("Myfxbook function error:", err?.message || err);
     return jsonResponse(502, { ok: false, error: err?.message || "Myfxbook error" });

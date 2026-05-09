@@ -452,9 +452,60 @@ body::before {
 }
 .toast.show { opacity: 1; transform: translateY(0); }
 
-/* ── Leaflet popup fully disabled ── */
-.leaflet-popup-content-wrapper, .leaflet-popup-tip { display: none !important; }
-.leaflet-popup { pointer-events: none !important; opacity: 0 !important; }
+/* ── Leaflet popup ── */
+.leaflet-popup { pointer-events: auto; }
+.leaflet-popup-content-wrapper {
+  background: rgba(10, 14, 19, 0.96);
+  border: 1px solid rgba(48, 54, 61, 0.7);
+  border-radius: 10px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+.leaflet-popup-tip { background: rgba(10, 14, 19, 0.96); }
+.leaflet-popup-content { margin: 8px 10px; }
+
+.sm-popup {
+  min-width: 190px;
+  color: var(--text);
+  font-family: "Cairo", sans-serif;
+  direction: rtl;
+}
+.sm-popup-title {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 700; font-size: 13px;
+  margin-bottom: 6px;
+}
+.sm-popup-flag { font-size: 18px; line-height: 1; }
+.sm-popup-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sm-popup-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; margin-bottom: 4px;
+}
+.sm-popup-label { color: var(--muted); }
+.sm-popup-value { font-family: var(--mono); font-weight: 700; }
+.sm-popup-value.buy { color: var(--green); }
+.sm-popup-value.sell { color: var(--red); }
+.sm-popup-pct {
+  display: flex; justify-content: space-between; gap: 6px;
+  margin: 6px 0;
+}
+.sm-popup-pill {
+  padding: 2px 6px; border-radius: 999px; font-size: 10px;
+  font-family: var(--mono);
+  border: 1px solid rgba(48, 54, 61, 0.45);
+}
+.sm-popup-pill.buy { color: var(--green); background: rgba(46, 160, 67, 0.12); }
+.sm-popup-pill.sell { color: var(--red); background: rgba(218, 54, 51, 0.12); }
+.sm-popup-bar {
+  display: flex; height: 6px; border-radius: 999px; overflow: hidden;
+  background: rgba(31, 38, 48, 0.8);
+  border: 1px solid rgba(48, 54, 61, 0.45);
+}
+.sm-popup-bar-fill { height: 100%; }
+.sm-popup-bar-fill.buy { background: linear-gradient(90deg, var(--green), var(--green-soft)); }
+.sm-popup-bar-fill.sell { background: linear-gradient(90deg, var(--red-soft), var(--red)); }
+.sm-popup-empty {
+  font-size: 12px; color: var(--muted); padding: 6px 0 2px;
+}
 
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(8px); }
