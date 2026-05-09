@@ -1,4 +1,4 @@
-/* app.js — Main application: UI, Myfxbook via local proxy */
+/* app.js — Main application: UI, Myfxbook via Netlify proxy */
 (() => {
   const C = window.SM_CONFIG;
   const ME = window.MapEngine;
@@ -219,7 +219,7 @@
   const fetchMyfxbook = async (assetKey) => {
     const symbol = A[assetKey]?.symbol;
     if (!symbol) throw new Error("Symbol not defined for " + assetKey);
-    const r = await fetch(`/api/mfb/outlook?symbol=${encodeURIComponent(symbol)}`);
+    const r = await fetch(`/.netlify/functions/myfxbook?symbol=${encodeURIComponent(symbol)}`);
     let d = null;
     try {
       d = await r.json();
@@ -329,7 +329,7 @@
     dom.topSell.textContent = topSell ? `${topSell.name} (${fmtPct(topSell.shortPercentage)})` : "--";
 
     dom.mfbStatus.textContent = state.sentimentAvailable
-      ? "● بيانات Myfxbook عبر البروكسي المحلي"
+      ? "● بيانات Myfxbook عبر Netlify"
       : "○ بيانات Myfxbook غير متوفرة";
 
     if (dom.mfbError) {
