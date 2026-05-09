@@ -1,5 +1,7 @@
 "use strict";
 
+const https = require("https");
+
 const MFB_BASE = "https://www.myfxbook.com/api";
 const SESSION_TTL_MS = 55 * 60 * 1000;
 
@@ -17,17 +19,33 @@ const jsonResponse = (statusCode, payload) => ({
   body: JSON.stringify(payload)
 });
 
-const fetchJson = async (url) => {
-  const res = await fetch(url, { headers: { "User-Agent": "SentiMap/1.0" } });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    throw new Error(data?.message || `HTTP ${res.status}`);
-  }
-  if (data?.error) {
-    throw new Error(data?.message || "Myfxbook error");
-  }
-  return data;
-};
+const fetchJson = (url) => new Promise((resolve, reject) => {
+  https.get(url, { headers: { "User-Agent": "SentiMap/1.0" } }, (res) => {
+    let body = "";
+    res.on("data", chunk => { body += chunk; });
+    res.on("end", () => {
+      let data = null;
+      try {
+        data = JSON.parse(body);
+      } catch (err) {
+        reject(err);
+        return;
+      }
+
+      if ((res.statusCode || 0) >= 400) {
+        reject(new Error(data?.message || `HTTP ${res.statusCode}`));
+        return;
+      }
+
+      if (data?.error) {
+        reject(new Error(data?.message || "Myfxbook error"));
+        return;
+      }
+
+      resolve(data);
+    });
+  }).on("error", reject);
+});
 
 const login = async () => {
   const email = process.env.MYFXBOOK_EMAIL;

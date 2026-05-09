@@ -51,6 +51,7 @@
   };
   const GEO_CACHE_KEY = "sentimap:geo_cache";
   const GEO_CACHE_TTL = 6 * 60 * 60 * 1000;
+  const GEO_ENDPOINTS = ["/api/geo", "/.netlify/functions/geo"];
   const toNumber = v => {
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
@@ -69,6 +70,25 @@
   const fmtPct = v => (Number.isFinite(v) ? `${v.toFixed(2)}%` : "--");
   const fmtCount = v => (Number.isFinite(v) ? new Intl.NumberFormat("en-US").format(Math.round(v)) : "--");
 
+  const fetchGeo = async () => {
+    for (const endpoint of GEO_ENDPOINTS) {
+      try {
+        const r = await fetch(endpoint);
+        const d = await r.json();
+        if (r.ok && d?.ok && d?.data?.countryCode) return d.data;
+      } catch {
+        // Ignore endpoint errors and try the next.
+      }
+    }
+
+    const r = await fetch("https://ipwho.is/");
+    const d = await r.json();
+    if (!r.ok || d?.success === false || !d?.country_code) {
+      throw new Error("location unavailable");
+    }
+    return { country: d.country, countryCode: d.country_code, city: d.city };
+  };
+
   // ── IP Detection ──
   const detectLocation = async () => {
     try {
@@ -86,11 +106,7 @@
         }
       }
 
-      const r = await fetch("/api/geo");
-      const d = await r.json();
-      if (!r.ok || !d?.ok || !d?.data?.countryCode) throw new Error(d?.error || "location unavailable");
-
-      const loc = d.data;
+      const loc = await fetchGeo();
       localStorage.setItem(GEO_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: loc }));
       state.userLocation = { country: loc.country, countryCode: loc.countryCode, city: loc.city };
     } catch {
